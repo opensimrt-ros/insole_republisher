@@ -5,6 +5,7 @@
 #include "ros/subscriber.h"
 #include "ros/time.h"
 #include <deque>
+#include <optional>
 #include "std_msgs/Header.h"
 
 //the message needs to have a header.
@@ -20,23 +21,36 @@ class Republisher
 			pub = nh.advertise<T>("output", input_queue_length);
 			ROS_INFO_STREAM("Finished setting up republisher OK.");
 		}
-		void publish_one()
+		std::optional<T> get_latest()
 		{
 			if (input_queue.size()>0)
 			{
 				T el =input_queue.front();
 				std_msgs::Header h;
 				h.stamp = ros::Time::now();
+				h.frame_id = el.header.frame_id;
 				el.header = h;
-				pub.publish(el);
 				input_queue.pop_front();
+				ROS_DEBUG_STREAM(el);
+				return std::optional<T>(el);
 			}
 			else
 			{
-				pub.publish(last_value);
+				if (!last_value)
+				{//ROS_ERROR_STREAM("variable not initialized!!!");
+					return std::nullopt;
+				}
+				//we restamp the last value so it is new!
+				last_value.value().header.stamp = ros::Time::now();
 				//ROS_WARN("input_queue is empty");
+				return last_value;
 			}
 
+		}
+
+		void publish_one()
+		{
+				pub.publish(get_latest());
 		}
 	private:
 		ros::Subscriber sub;
@@ -44,10 +58,11 @@ class Republisher
 		ros::NodeHandle nh{"~"};
 		int input_queue_length, maximum_queue_length;
 		std::deque<T> input_queue;
-		T last_value;
+		std::optional<T> last_value;
 		void callback(T msg_insole)
 		{
-			last_value = msg_insole;
+			ROS_DEBUG_STREAM("received value!");
+			last_value = std::optional<T>(msg_insole);
 			input_queue.push_back(msg_insole);
 			while (input_queue.size()>maximum_queue_length)
 			{
