@@ -68,7 +68,7 @@ int main(int argvc, char **argv)
 	nh.param<double>("rate", rate, 100);
 	auto r = ros::Rate(rate);
 	Republisher<insole_msgs::InsoleSensorStamped> rep;
-	ros::Publisher wrench_publisher = nh.advertise<geometry_msgs::WrenchStamped>("wrench",1);
+	ros::Publisher wrench_publisher = nh.advertise<geometry_msgs::WrenchStamped>("wrench_oversampled",1);
 	ros::Publisher wrench_publisher_f = nh.advertise<geometry_msgs::WrenchStamped>("wrench_filtered",1);
 	tf::TransformBroadcaster tf;
 
@@ -94,6 +94,12 @@ int main(int argvc, char **argv)
 		w.wrench = el.wrench;
 
 		wrench_publisher.publish(w);
+		auto st = geometry_msgs::TransformStamped();
+		st.header = el.header;
+		st.header.frame_id = el.ts.header.frame_id;
+		st.transform = el.ts.transform;
+		st.child_frame_id = el.ts.child_frame_id+"_oversampled";
+		tf.sendTransform(st);
 		//modify w to its filtered version
 		if (wfilter->publish_filtered)
 		{
@@ -110,12 +116,6 @@ int main(int argvc, char **argv)
 				wrench_publisher_f.publish(w);
 			}
 		}
-		auto st = geometry_msgs::TransformStamped();
-		st.header = el.header;
-		st.header.frame_id = el.ts.header.frame_id;
-		st.transform = el.ts.transform;
-		st.child_frame_id = el.ts.child_frame_id;
-		tf.sendTransform(st);
 		r.sleep();
 		ros::spinOnce();
 	}
