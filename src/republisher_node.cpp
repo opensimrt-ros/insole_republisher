@@ -30,7 +30,7 @@ class RosOpenSimRTFilter
 			nh.param<int>("spline_order", splineOrder, 0);
 			nh.param<int>("delay", delay, 0);
 
-			filterParam.numSignals = 3;
+			filterParam.numSignals = 3+2; // +2 for cop filtering
 			filterParam.memory = memory;
 			filterParam.delay = delay;
 			filterParam.cutoffFrequency = cutoffFreq;
@@ -88,7 +88,7 @@ int main(int argvc, char **argv)
 			at.set_initial_time(el.header);
 		double time = at.now(el.header);
 		ROS_DEBUG_STREAM(time);
-		SimTK::Vector x(3);
+		SimTK::Vector x(5);
 		auto w = geometry_msgs::WrenchStamped();
 		w.header = el.header;
 		w.wrench = el.wrench;
@@ -106,6 +106,8 @@ int main(int argvc, char **argv)
 			x[0] = w.wrench.force.x;
 			x[1] = w.wrench.force.y;
 			x[2] = w.wrench.force.z;
+			x[3] = st.transform.translation.x;
+			x[4] = st.transform.translation.y;
 			auto x_filtered = wfilter->filter(time, x);
 			if (x_filtered.isValid)
 			{
@@ -114,6 +116,11 @@ int main(int argvc, char **argv)
 				w.wrench.force.z = x_filtered.x[2];
 				ROS_DEBUG_STREAM(x <<"  "<<x_filtered.x);
 				wrench_publisher_f.publish(w);
+				auto st_filtered = st;
+				st_filtered.transform.translation.x = x_filtered.x[3];
+				st_filtered.transform.translation.y = x_filtered.x[4];
+				st_filtered.child_frame_id = el.ts.child_frame_id + "_filtered";
+				tf.sendTransform(st_filtered);
 			}
 		}
 		r.sleep();

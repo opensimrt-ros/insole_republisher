@@ -9,7 +9,7 @@
 		<param name="rate" 					value="$(arg freq)"/>
 		<remap from="/insole_republisher_$(arg some_grf)/input" 		to="/$(arg some_grf)/insole"/>
 		<remap from="/insole_republisher_$(arg some_grf)/output" 		to="/$(arg some_grf)/insole_fixed_freq"/>
-		<remap from="/insole_republisher_$(arg some_grf)/wrench" 		to="/grf_$(arg some_grf)/wrench_fixed_freq"/>
+		<remap from="/insole_republisher_$(arg some_grf)/wrench_oversampled"	to="/grf_$(arg some_grf)/wrench_fixed_freq"/>
 		<remap from="/insole_republisher_$(arg some_grf)/wrench_filtered" to="/grf_$(arg some_grf)/wrench"/>
 		<!-- Filter values for filtered output -->
 		<param name="filter_output" 		value="true" />
