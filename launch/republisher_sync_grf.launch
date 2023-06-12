@@ -7,7 +7,7 @@
 		<param name="input_queue_length" 			value="100"/>
 		<param name="maximum_queue_length" 			value="1000"/>
 		<param name="rate" 					value="$(arg freq)"/>
-		<remap from="/ik/output" to="/ik"/>
+		<remap from="/insole_republisher_$(arg some_grf)/ik" 			to="/ik/output"/>
 		<remap from="/insole_republisher_$(arg some_grf)/input" 		to="/$(arg some_grf)/insole"/>
 		<remap from="/insole_republisher_$(arg some_grf)/output" 		to="/$(arg some_grf)/insole_fixed_freq"/>
 		<remap from="/insole_republisher_$(arg some_grf)/wrench_oversampled"	to="/grf_$(arg some_grf)/wrench_fixed_freq"/>

@@ -78,10 +78,10 @@ class SyncRepublisher
 		{
 			nh.param<double>("rate", rate, 100);
 			r = new ros::Rate(rate);
-			RosOpenSimRTFilter* wfilter = new RosOpenSimRTFilter(nh);
-			ros::Publisher wrench_publisher = nh.advertise<geometry_msgs::WrenchStamped>("wrench_oversampled",1);
-			ros::Publisher wrench_publisher_f = nh.advertise<geometry_msgs::WrenchStamped>("wrench_filtered",1);
-			ros::Subscriber ik_sub = nh.subscribe("ik",1,&SyncRepublisher::callback, this);
+			wfilter = new RosOpenSimRTFilter(nh);
+			wrench_publisher = nh.advertise<geometry_msgs::WrenchStamped>("wrench_oversampled",10);
+			wrench_publisher_f = nh.advertise<geometry_msgs::WrenchStamped>("wrench_filtered",10);
+			ik_sub = nh.subscribe("ik",1,&SyncRepublisher::callback, this);
 		}
 		void run()
 		{
@@ -103,17 +103,19 @@ class SyncRepublisher
 			w.wrench = el.wrench;
 
 			///////wrench_publisher.publish(w);
-			pb.w_oversampled = w;
 			auto st = geometry_msgs::TransformStamped();
 			st.header = el.header;
 			st.header.frame_id = el.ts.header.frame_id;
 			st.transform = el.ts.transform;
 			st.child_frame_id = el.ts.child_frame_id+"_oversampled";
 			/////////tf.sendTransform(st);
+			pb.w_oversampled = w;
 			pb.t_oversampled = st;
+			ROS_DEBUG_STREAM("Sent oversampled values to buffer.");
 			//modify w to its filtered version
 			if (wfilter->publish_filtered)
 			{
+				ROS_DEBUG_STREAM("Calculating filtered values.");
 				x[0] = w.wrench.force.x;
 				x[1] = w.wrench.force.y;
 				x[2] = w.wrench.force.z;
@@ -122,18 +124,21 @@ class SyncRepublisher
 				auto x_filtered = wfilter->filter(time, x);
 				if (x_filtered.isValid)
 				{
-					w.wrench.force.x = x_filtered.x[0];
-					w.wrench.force.y = x_filtered.x[1];
-					w.wrench.force.z = x_filtered.x[2];
+					ROS_DEBUG_STREAM("Filter is valid");
+					auto w_filtered =w;
+					w_filtered.wrench.force.x = x_filtered.x[0];
+					w_filtered.wrench.force.y = x_filtered.x[1];
+					w_filtered.wrench.force.z = x_filtered.x[2];
 					ROS_DEBUG_STREAM(x <<"  "<<x_filtered.x);
 					///////wrench_publisher_f.publish(w);
-					pb.w_filtered = w;
 					auto st_filtered = st;
 					st_filtered.transform.translation.x = x_filtered.x[3];
 					st_filtered.transform.translation.y = x_filtered.x[4];
 					st_filtered.child_frame_id = el.ts.child_frame_id + "_filtered";
 					///////////tf.sendTransform(st_filtered);
 					pb.t_filtered = st_filtered;
+					pb.w_filtered = w_filtered;
+					ROS_DEBUG_STREAM("Sent values to buffer.");
 				}
 			}
 			r->sleep();
@@ -150,22 +155,31 @@ class SyncRepublisher
 		PublicationBuffer pb;
 		RosOpenSimRTFilter* wfilter;
 		AppropriateTime at;
+		std_msgs::Header::_stamp_type previous_time;
 		void callback(opensimrt_msgs::CommonTimed m)
 		{
 			//what we want here is to have the time from the ik so we can use exacttime policy. I am still not sure this is the issue, but I will try it out. Maybe what we really need is a time synchronizer on the publisher of ID, or maybe we need both, I don't know yet.
 			auto ik_header_stamp = m.header.stamp; // not sure if this works.
-			
+			if (ik_header_stamp < previous_time)
+				ROS_FATAL_STREAM("MESSAGES ARE OUT OF ORDER");
 			//update stamps
 			pb.t_filtered.header.stamp = ik_header_stamp;
 			pb.t_oversampled.header.stamp = ik_header_stamp;
 			pb.w_filtered.header.stamp = ik_header_stamp;
 			pb.w_oversampled.header.stamp = ik_header_stamp;
 
-
+			ROS_DEBUG_STREAM(pb.t_filtered << pb.t_oversampled << pb.w_filtered << pb.w_oversampled);
 			wrench_publisher.publish(pb.w_oversampled);
+			if (pb.t_oversampled.child_frame_id != "")
+			{
+				tf.sendTransform(pb.t_oversampled);
+			}
+			if (pb.t_filtered.child_frame_id != "")
+			{
+				tf.sendTransform(pb.t_filtered);
+			}
 			wrench_publisher_f.publish(pb.w_filtered);
-			tf.sendTransform(pb.t_oversampled);
-			tf.sendTransform(pb.t_filtered);
+			previous_time = ik_header_stamp;
 		};
 
 };
