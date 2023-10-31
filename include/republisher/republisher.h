@@ -30,18 +30,20 @@ class Republisher
 		ros::Duration delay;
 		tf::TransformBroadcaster tf;
 		bool debug_publish_zero_cop, debug_publish_fixed_force;
-		ros::Publisher wrench_publisher = nh.advertise<geometry_msgs::WrenchStamped>("wrench_oversampled",1);
-		ros::Publisher wrench_publisher_f = nh.advertise<geometry_msgs::WrenchStamped>("wrench_filtered",1);
+		ros::Publisher wrench_publisher;
+		ros::Publisher wrench_publisher_f;
 
-		RosOpenSimRTFilter* wfilter = new RosOpenSimRTFilter(nh,6);
+		RosOpenSimRTFilter* wfilter;
 		AppropriateTime at;
 		PublicationBuffer pb;
 		Republisher()
 		{
+			ROS_INFO_STREAM("this started");
+			wfilter = new RosOpenSimRTFilter(nh,6);
 			nh.param<int>("maximum_queue_length", maximum_queue_length, 1000);
 			nh.param<int>("input_queue_length", input_queue_length, 10);
 			sub = nh.subscribe("input", 10, &Republisher::callback, this);
-			pub = nh.advertise<T>("output", input_queue_length);
+			pub = nh.advertise<insole_msgs::InsoleSensorStamped>("output", input_queue_length);
 			double rate;
 			nh.param<double>("rate", rate, 100);
 			r = new ros::Rate(rate);
@@ -51,6 +53,9 @@ class Republisher
 
 			nh.param<bool>("debug_publish_zero_cop", debug_publish_zero_cop, false);
 			nh.param<bool>("debug_publish_fixed_force", debug_publish_fixed_force, false);
+		
+			wrench_publisher = nh.advertise<geometry_msgs::WrenchStamped>("wrench_oversampled",1);
+			wrench_publisher_f = nh.advertise<geometry_msgs::WrenchStamped>("wrench_filtered",1);
 
 			ROS_INFO_STREAM("Finished setting up republisher OK.");
 		}
@@ -177,7 +182,7 @@ class Republisher
 			old_time = time;
 		}
 
-		std::optional<T> get_latest()
+		std::optional<insole_msgs::InsoleSensorStamped> get_latest()
 		{
 			if (input_queue.size()>0)
 			{
@@ -188,7 +193,7 @@ class Republisher
 				el.header = h;
 				input_queue.pop_front();
 				ROS_DEBUG_STREAM(el);
-				return std::optional<T>(el);
+				return std::optional<insole_msgs::InsoleSensorStamped>(el);
 			}
 			else
 			{
@@ -209,16 +214,16 @@ class Republisher
 			pub.publish(get_latest());
 		}
 		ros::NodeHandle nh{"~"};
-		std::deque<T> input_queue;
+		std::deque<insole_msgs::InsoleSensorStamped> input_queue;
 	private:
 		ros::Subscriber sub;
 		ros::Publisher pub;
 		int input_queue_length, maximum_queue_length;
-		std::optional<T> last_value;
+		std::optional<insole_msgs::InsoleSensorStamped> last_value;
 		void callback(T msg_insole)
 		{
 			ROS_DEBUG_STREAM("received value!");
-			last_value = std::optional<T>(msg_insole);
+			last_value = std::optional<insole_msgs::InsoleSensorStamped>(msg_insole);
 			input_queue.push_back(msg_insole);
 			while (input_queue.size()>maximum_queue_length)
 			{

@@ -28,6 +28,7 @@ class SyncRepublisher
 		SyncRepublisher()
 		{
 			ik_sub = nh.subscribe("ik",1,&SyncRepublisher::callback, this);
+			ROS_INFO_STREAM("git heer");
 		}
 		Republisher<insole_msgs::InsoleSensorStamped> rep;
 	private:
@@ -59,8 +60,14 @@ class SyncRepublisher
 int main(int argvc, char **argv)
 {
 	ros::init(argvc, argv, "rep");
+	if( false && ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug) ) //true to debug
+	{
+		ros::console::notifyLoggerLevelsChanged();
+	}
 	//TODO:reads the message trigger type and instantiate the appropriate type of class to sync to. 
+	ROS_INFO_STREAM("get here");
 		SyncRepublisher<opensimrt_msgs::CommonTimed> sr;
+	ROS_INFO_STREAM("also here");
 	while(ros::ok())
 	{
 		sr.rep.run();
