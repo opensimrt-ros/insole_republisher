@@ -182,6 +182,13 @@ target_link_libraries(republisher_sync
 	${OpenSim_LIBRARIES}
 	${opensimrt_LIBRARIES}
 	)
+add_executable(republisher_time_corrected src/republisher_time_corrected_node.cpp)
+add_dependencies(republisher_time_corrected ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(republisher_time_corrected
+	${catkin_LIBRARIES}
+	${OpenSim_LIBRARIES}
+	${opensimrt_LIBRARIES}
+	)
 
 #############
 ## Install ##

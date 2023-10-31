@@ -18,6 +18,7 @@
 
 class InsoleRepublisherWithTimeCorrection: public Republisher<insole_msgs::InsoleSensorStamped>
 {
+	public:
 	InsoleRepublisherWithTimeCorrection()
 	{
 		nh.param<int>("maximum_delay_before_refresh",maximum_delay_before_refresh, 10); //in ms

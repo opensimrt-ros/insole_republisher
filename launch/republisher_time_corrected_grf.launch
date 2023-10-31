@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<launch>
+	<arg name="freq" 	default="200" />
+	<arg name="some_grf" 	default="some_grf"/>
+	<arg name="wrench_delay" 	default="0.0"/>
+
+	<arg name="sync_time_secs" 	default="20" />
+	<arg name="sync_time_nsecs" 	default="20" />
+	<arg name="insole_t0" 	default="8000" />
+	<arg name="maximum_delay_before_refresh" 	default="10" />
+
+	<group ns="$(arg some_grf)">
+		<node pkg="republisher" type="republisher_time_corrected" name="insole_republisher" output="screen">
+			<param name="rate" 					value="$(arg freq)"/>
+			<param name="wrench_delay"					value="$(arg wrench_delay)"/>
+			<param name="input_queue_length" 			value="100"/>
+			<param name="maximum_queue_length" 			value="1000"/>
+			<param name="rate" 					value="$(arg freq)"/>
+			<remap from="insole_republisher/input" 			to="/$(arg some_grf)/insole"/>
+			<remap from="insole_republisher/output" 		to="/$(arg some_grf)/insole_fixed_freq"/>
+			<remap from="insole_republisher/wrench_oversampled"	to="/grf_$(arg some_grf)/wrench_fixed_freq"/>
+			<remap from="insole_republisher/wrench_filtered" 	to="/grf_$(arg some_grf)/wrench"/>
+			<!-- Filter values for filtered output -->
+			<param name="filter_output" 		value="true" />
+			<param name="memory" 			value="35" />
+			<param name="cutoff_freq" 		value="6" />
+			<param name="delay" 			value="6" />
+			<param name="spline_order" 		value="3" />
+
+			<param name="insole_time_when_synchronized"	value="$(arg insole_t0)"/>
+			<param name="sync_time_secs"	value="$(arg sync_time_secs)"/>
+			<param name="sync_time_nsecs"	value="$(arg sync_time_nsecs)"/>
+			<param name="maximum_delay_before_refresh"	value="$(arg maximum_delay_before_refresh)"/>
+
+
+		</node>
+	</group>
+</launch>
+
+
