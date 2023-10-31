@@ -52,12 +52,12 @@ class Republisher
 		{
 				pub.publish(get_latest());
 		}
+		ros::NodeHandle nh{"~"};
+		std::deque<T> input_queue;
 	private:
 		ros::Subscriber sub;
 		ros::Publisher pub;
-		ros::NodeHandle nh{"~"};
 		int input_queue_length, maximum_queue_length;
-		std::deque<T> input_queue;
 		std::optional<T> last_value;
 		void callback(T msg_insole)
 		{

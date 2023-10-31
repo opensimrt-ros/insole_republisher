@@ -14,51 +14,7 @@
 #include <SimTKcommon/internal/Vec.h>
 
 //filter
-class RosOpenSimRTFilter
-{
-	public:
-		OpenSimRT::LowPassSmoothFilter::Parameters filterParam;
-		bool publish_filtered;	
-		double cutoffFreq;
-		int splineOrder, memory, delay;
-		OpenSimRT::LowPassSmoothFilter * ofilter;
-		RosOpenSimRTFilter(ros::NodeHandle nh)
-		{
-			nh.param<bool>("filter_output",publish_filtered, true);
-			nh.param<double>("cutoff_freq", cutoffFreq, 0.0);
-			nh.param<int>("memory", memory, 0);
-			nh.param<int>("spline_order", splineOrder, 0);
-			nh.param<int>("delay", delay, 0);
-
-			filterParam.numSignals = 3+2; // +2 for cop filtering
-			filterParam.memory = memory;
-			filterParam.delay = delay;
-			filterParam.cutoffFrequency = cutoffFreq;
-			filterParam.splineOrder = splineOrder;
-			filterParam.calculateDerivatives = true;
-			ofilter = new OpenSimRT::LowPassSmoothFilter(filterParam);
-		}
-		OpenSimRT::LowPassSmoothFilter::Output filter(double t, SimTK::Vector v)
-		{
-			return ofilter->filter({t,v});
-		}
-};
-
-class AppropriateTime
-{
-	public:
-		std::optional<ros::Time> initial_time;
-		void set_initial_time(std_msgs::Header h)
-		{
-			initial_time = h.stamp;				
-
-		}
-		double now(std_msgs::Header h)
-		{
-			ros::Duration d = h.stamp - initial_time.value();
-			return d.toSec();
-		}
-};
+#include "republisher/filter.h"
 
 int main(int argvc, char **argv)
 {
@@ -72,7 +28,7 @@ int main(int argvc, char **argv)
 	ros::Publisher wrench_publisher_f = nh.advertise<geometry_msgs::WrenchStamped>("wrench_filtered",1);
 	tf::TransformBroadcaster tf;
 
-	RosOpenSimRTFilter* wfilter = new RosOpenSimRTFilter(nh);
+	RosOpenSimRTFilter* wfilter = new RosOpenSimRTFilter(nh,5);
 	AppropriateTime at;
 	while(ros::ok())
 	{
@@ -85,7 +41,7 @@ int main(int argvc, char **argv)
 		}
 		auto el = el_o.value();
 		if (!at.initial_time)
-			at.set_initial_time(el.header);
+			at.set_initial_time(el.header, ros::Duration(0)); // no delay here.
 		double time = at.now(el.header);
 		ROS_DEBUG_STREAM(time);
 		SimTK::Vector x(5);

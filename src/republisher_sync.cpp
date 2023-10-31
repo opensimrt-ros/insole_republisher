@@ -18,58 +18,7 @@
 #include <SimTKcommon/internal/Vec.h>
 
 //filter
-class RosOpenSimRTFilter
-{
-	public:
-		OpenSimRT::LowPassSmoothFilter::Parameters filterParam;
-		bool publish_filtered;	
-		double cutoffFreq;
-		int splineOrder, memory, delay;
-		OpenSimRT::LowPassSmoothFilter * ofilter;
-		double old_time = 0;
-		RosOpenSimRTFilter(ros::NodeHandle nh)
-		{
-			nh.param<bool>("filter_output",publish_filtered, true);
-			nh.param<double>("cutoff_freq", cutoffFreq, 0.0);
-			nh.param<int>("memory", memory, 0);
-			nh.param<int>("spline_order", splineOrder, 0);
-			nh.param<int>("delay", delay, 0);
-
-			filterParam.numSignals = 6; // force and point
-			filterParam.memory = memory;
-			filterParam.delay = delay;
-			filterParam.cutoffFrequency = cutoffFreq;
-			filterParam.splineOrder = splineOrder;
-			filterParam.calculateDerivatives = true;
-			ofilter = new OpenSimRT::LowPassSmoothFilter(filterParam);
-		}
-		OpenSimRT::LowPassSmoothFilter::Output filter(double t, SimTK::Vector v)
-		{
-			if (t <= old_time)
-			{
-				ROS_FATAL_STREAM("time added to filter: "<< t <<  " is smaller than previous_time: "<< old_time<<". how can this be?");
-				return ofilter->filter({old_time,v});
-			}
-			old_time = t;
-			return ofilter->filter({t,v});
-		}
-};
-
-class AppropriateTime
-{
-	public:
-		std::optional<ros::Time> initial_time;
-		void set_initial_time(std_msgs::Header h, ros::Duration d)
-		{
-			initial_time = h.stamp - d;				
-
-		}
-		double now(std_msgs::Header h)
-		{
-			ros::Duration d = h.stamp - initial_time.value();
-			return d.toSec();
-		}
-};
+#include "republisher/filter.h"
 
 struct PublicationBuffer
 {
@@ -96,7 +45,7 @@ class SyncRepublisher
 			nh.param<bool>("debug_publish_fixed_force", debug_publish_fixed_force, false);
 			delay.fromSec(delay_seconds);
 			r = new ros::Rate(rate);
-			wfilter = new RosOpenSimRTFilter(nh);
+			wfilter = new RosOpenSimRTFilter(nh, 6);
 			wrench_publisher = nh.advertise<geometry_msgs::WrenchStamped>("wrench_oversampled",1);
 			wrench_publisher_f = nh.advertise<geometry_msgs::WrenchStamped>("wrench_filtered",1);
 			ik_sub = nh.subscribe("ik",1,&SyncRepublisher::callback, this);
