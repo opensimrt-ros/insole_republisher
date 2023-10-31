@@ -2,15 +2,16 @@
 <launch>
 	<arg name="freq" default="200" />
 
-	<node pkg="republisher" type="republisher_node" name="insole_republisher_right" output="screen">
+	<group ns="right" />
+	<node pkg="republisher" type="republisher_node" name="insole_republisher" output="screen">
 		<param name="rate" 				value="$(arg freq)"/>
 		<param name="input_queue_length" 		value="100"/>
 		<param name="maximum_queue_length" 		value="1000"/>
 		<param name="rate" 				value="$(arg freq)"/>
-		<remap from="/insole_republisher_right/input" 	to="/right/insole"/>
-		<remap from="/insole_republisher_right/output" 	to="/right/insole_fixed_freq"/>
-		<remap from="/insole_republisher_right/wrench_oversampled" 	to="/grf_right/wrench_fixed_freq"/>
-		<remap from="/insole_republisher_right/wrench_filtered" 	to="/grf_right/wrench_filtered"/>
+		<remap from="insole_republisher/input" 		to="insole"/>
+		<remap from="insole_republisher/output" 	to="insole_fixed_freq"/>
+		<remap from="insole_republisher/wrench_oversampled" 	to="/grf_right/wrench_fixed_freq"/>
+		<remap from="insole_republisher/wrench_filtered" 	to="/grf_right/wrench_filtered"/>
 		<!-- Filter values for filtered output -->
 		<param name="filter_output" 		value="true" />
 		<param name="memory" 			value="35" />
@@ -18,15 +19,17 @@
 		<param name="delay" 			value="14" />
 		<param name="spline_order" 		value="3" />
 	</node>
-	<node pkg="republisher" type="republisher_node" name="insole_republisher_left" output="screen">
+	</group>
+	<group ns="left" />
+	<node pkg="republisher" type="republisher_node" name="insole_republisher" output="screen">
 		<param name="rate" 				value="$(arg freq)"/>
 		<param name="input_queue_length" 		value="100"/>
 		<param name="maximum_queue_length" 		value="1000"/>
 		<param name="rate" 				value="$(arg freq)"/>
-		<remap from="/insole_republisher_left/input" 	to="/left/insole"/>
-		<remap from="/insole_republisher_left/output" 	to="/left/insole_fixed_freq"/>
-		<remap from="/insole_republisher_left/wrench_filtered" 	to="/grf_left/wrench_filtered"/>
-		<remap from="/insole_republisher_left/wrench_oversampled" 	to="/grf_left/wrench_fixed_freq"/>
+		<remap from="insole_republisher/input" 		to="insole"/>
+		<remap from="insole_republisher/output" 	to="insole_fixed_freq"/>
+		<remap from="insole_republisher/wrench_filtered" 	to="/grf_left/wrench_filtered"/>
+		<remap from="insole_republisher/wrench_oversampled" 	to="/grf_left/wrench_fixed_freq"/>
 		<!-- Filter values for filtered output -->
 		<param name="filter_output" 		value="true" />
 		<param name="memory" 			value="35" />
@@ -34,7 +37,7 @@
 		<param name="delay" 			value="14" />
 		<param name="spline_order" 		value="3" />
 	</node>
-
+	</group>
 </launch>
 
 

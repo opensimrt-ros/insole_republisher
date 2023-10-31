@@ -27,7 +27,7 @@ class Republisher
 			{
 				T el =input_queue.front();
 				std_msgs::Header h;
-				h.stamp = ros::Time::now();
+				h.stamp = ros::Time::now(); // listen here buddy, this is incorrecto. I am removing any delay I had from the initial message!
 				h.frame_id = el.header.frame_id;
 				el.header = h;
 				input_queue.pop_front();

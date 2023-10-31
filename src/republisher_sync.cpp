@@ -1,6 +1,8 @@
+#include "geometry_msgs/Vector3.h"
 #include "geometry_msgs/WrenchStamped.h"
 #include "opensimrt_msgs/CommonTimed.h"
 #include "republisher/republisher.h"
+#include "ros/duration.h"
 #include "ros/init.h"
 #include "ros/message_traits.h"
 #include "ros/node_handle.h"
@@ -24,6 +26,7 @@ class RosOpenSimRTFilter
 		double cutoffFreq;
 		int splineOrder, memory, delay;
 		OpenSimRT::LowPassSmoothFilter * ofilter;
+		double old_time = 0;
 		RosOpenSimRTFilter(ros::NodeHandle nh)
 		{
 			nh.param<bool>("filter_output",publish_filtered, true);
@@ -32,7 +35,7 @@ class RosOpenSimRTFilter
 			nh.param<int>("spline_order", splineOrder, 0);
 			nh.param<int>("delay", delay, 0);
 
-			filterParam.numSignals = 3+2; // +2 for cop filtering
+			filterParam.numSignals = 6; // force and point
 			filterParam.memory = memory;
 			filterParam.delay = delay;
 			filterParam.cutoffFrequency = cutoffFreq;
@@ -42,6 +45,12 @@ class RosOpenSimRTFilter
 		}
 		OpenSimRT::LowPassSmoothFilter::Output filter(double t, SimTK::Vector v)
 		{
+			if (t <= old_time)
+			{
+				ROS_FATAL_STREAM("time added to filter: "<< t <<  " is smaller than previous_time: "<< old_time<<". how can this be?");
+				return ofilter->filter({old_time,v});
+			}
+			old_time = t;
 			return ofilter->filter({t,v});
 		}
 };
@@ -50,9 +59,9 @@ class AppropriateTime
 {
 	public:
 		std::optional<ros::Time> initial_time;
-		void set_initial_time(std_msgs::Header h)
+		void set_initial_time(std_msgs::Header h, ros::Duration d)
 		{
-			initial_time = h.stamp;				
+			initial_time = h.stamp - d;				
 
 		}
 		double now(std_msgs::Header h)
@@ -70,17 +79,26 @@ struct PublicationBuffer
 	geometry_msgs::TransformStamped t_filtered;
 };
 
-
+template <typename TriggerMessageType>
 class SyncRepublisher
 {
 	public:
+		ros::Rate* r;
+		double old_time;
+		ros::Duration delay;
+		double delay_seconds;
+		bool debug_publish_zero_cop, debug_publish_fixed_force;
 		SyncRepublisher()
 		{
 			nh.param<double>("rate", rate, 100);
+			nh.param<double>("wrench_delay", delay_seconds, 0); 
+			nh.param<bool>("debug_publish_zero_cop", debug_publish_zero_cop, false);
+			nh.param<bool>("debug_publish_fixed_force", debug_publish_fixed_force, false);
+			delay.fromSec(delay_seconds);
 			r = new ros::Rate(rate);
 			wfilter = new RosOpenSimRTFilter(nh);
-			wrench_publisher = nh.advertise<geometry_msgs::WrenchStamped>("wrench_oversampled",10);
-			wrench_publisher_f = nh.advertise<geometry_msgs::WrenchStamped>("wrench_filtered",10);
+			wrench_publisher = nh.advertise<geometry_msgs::WrenchStamped>("wrench_oversampled",1);
+			wrench_publisher_f = nh.advertise<geometry_msgs::WrenchStamped>("wrench_filtered",1);
 			ik_sub = nh.subscribe("ik",1,&SyncRepublisher::callback, this);
 		}
 		void run()
@@ -88,20 +106,26 @@ class SyncRepublisher
 			std::optional<insole_msgs::InsoleSensorStamped> el_o = rep.get_latest();
 			if (!el_o)
 			{
-				r->sleep();
-				ros::spinOnce();
 				return;
 			}
 			auto el = el_o.value();
 			if (!at.initial_time)
-				at.set_initial_time(el.header);
+			{
+				at.set_initial_time(el.header,delay);
+				old_time = at.now(el.header);
+			}
+
 			double time = at.now(el.header);
+			if (time<=old_time)
+			{
+				ROS_ERROR("time is smaller than previous time. this is a problem");
+				return;
+			}
 			ROS_DEBUG_STREAM(time);
-			SimTK::Vector x(5);
 			auto w = geometry_msgs::WrenchStamped();
 			w.header = el.header;
 			w.wrench = el.wrench;
-
+			w.header.frame_id = el.header.frame_id + "_oversampled";
 			///////wrench_publisher.publish(w);
 			auto st = geometry_msgs::TransformStamped();
 			st.header = el.header;
@@ -116,37 +140,56 @@ class SyncRepublisher
 			if (wfilter->publish_filtered)
 			{
 				ROS_DEBUG_STREAM("Calculating filtered values.");
+				SimTK::Vector x(6);
 				x[0] = w.wrench.force.x;
 				x[1] = w.wrench.force.y;
 				x[2] = w.wrench.force.z;
 				x[3] = st.transform.translation.x;
 				x[4] = st.transform.translation.y;
+				x[5] = st.transform.translation.z;
 				auto x_filtered = wfilter->filter(time, x);
+				//makes sure i always have a valid header even when the filter is not yet ready.
+				auto st_filtered = st;
+				st_filtered.child_frame_id = el.ts.child_frame_id + "_filtered";
 				if (x_filtered.isValid)
 				{
 					ROS_DEBUG_STREAM("Filter is valid");
 					auto w_filtered =w;
-					w_filtered.wrench.force.x = x_filtered.x[0];
-					w_filtered.wrench.force.y = x_filtered.x[1];
-					w_filtered.wrench.force.z = x_filtered.x[2];
+					w_filtered.header.frame_id = st_filtered.child_frame_id; //this is the correct frame for filtered, right?
+					if (debug_publish_fixed_force)
+					{
+						w_filtered.wrench.force = geometry_msgs::Vector3();
+						w_filtered.wrench.force.y = 100;
+					}
+					else
+					{
+						w_filtered.wrench.force.x = x_filtered.x[0];
+						w_filtered.wrench.force.y = x_filtered.x[1];
+						w_filtered.wrench.force.z = x_filtered.x[2];
+					}
 					ROS_DEBUG_STREAM(x <<"  "<<x_filtered.x);
 					///////wrench_publisher_f.publish(w);
-					auto st_filtered = st;
-					st_filtered.transform.translation.x = x_filtered.x[3];
-					st_filtered.transform.translation.y = x_filtered.x[4];
-					st_filtered.child_frame_id = el.ts.child_frame_id + "_filtered";
+					if (debug_publish_zero_cop)
+					{
+						st_filtered.transform.translation = geometry_msgs::Vector3();
+					}
+					else
+					{
+						st_filtered.transform.translation.x = x_filtered.x[3];
+						st_filtered.transform.translation.y = x_filtered.x[4];
+						st_filtered.transform.translation.z = x_filtered.x[5];
+					}
 					///////////tf.sendTransform(st_filtered);
 					pb.t_filtered = st_filtered;
 					pb.w_filtered = w_filtered;
-					ROS_DEBUG_STREAM("Sent values to buffer.");
+					ROS_DEBUG_STREAM("Sent values to 'buffer' (it's not really a buffer. there is one sample there...).");
 				}
 			}
-			r->sleep();
+			old_time = time;
 		}
 	private:
 		ros::NodeHandle nh{"~"};
 		double rate;
-		ros::Rate* r;
 		Republisher<insole_msgs::InsoleSensorStamped> rep;
 		ros::Publisher wrench_publisher; 
 		ros::Publisher wrench_publisher_f;
@@ -156,12 +199,16 @@ class SyncRepublisher
 		RosOpenSimRTFilter* wfilter;
 		AppropriateTime at;
 		std_msgs::Header::_stamp_type previous_time;
-		void callback(opensimrt_msgs::CommonTimed m)
+		void callback(TriggerMessageType m)
 		{
 			//what we want here is to have the time from the ik so we can use exacttime policy. I am still not sure this is the issue, but I will try it out. Maybe what we really need is a time synchronizer on the publisher of ID, or maybe we need both, I don't know yet.
 			auto ik_header_stamp = m.header.stamp; // not sure if this works.
 			if (ik_header_stamp < previous_time)
 				ROS_FATAL_STREAM("MESSAGES ARE OUT OF ORDER");
+			//backstamping with delay
+			ROS_DEBUG_STREAM("backstamping with delay" << delay);
+			ik_header_stamp -= delay;
+
 			//update stamps
 			pb.t_filtered.header.stamp = ik_header_stamp;
 			pb.t_oversampled.header.stamp = ik_header_stamp;
@@ -170,15 +217,39 @@ class SyncRepublisher
 
 			ROS_DEBUG_STREAM(pb.t_filtered << pb.t_oversampled << pb.w_filtered << pb.w_oversampled);
 			wrench_publisher.publish(pb.w_oversampled);
-			if (pb.t_oversampled.child_frame_id != "")
+			// check if the tf trasnformaitons are complete
+			if (pb.t_oversampled.header.frame_id == "")
 			{
-				tf.sendTransform(pb.t_oversampled);
+				ROS_ERROR("t_oversampled has no source frame_id");
 			}
-			if (pb.t_filtered.child_frame_id != "")
+			else
 			{
-				tf.sendTransform(pb.t_filtered);
+				if (pb.t_oversampled.child_frame_id != "")
+				{
+					tf.sendTransform(pb.t_oversampled);
+				}
+				else
+				{
+					ROS_ERROR("oversampled has no child_frame_id!");
+				}
 			}
-			wrench_publisher_f.publish(pb.w_filtered);
+			if (pb.t_filtered.header.frame_id == "")
+			{
+				ROS_ERROR("t_filtered has no source frame_id");
+			}
+			else
+			{
+				if (pb.t_filtered.child_frame_id != "")
+				{
+					tf.sendTransform(pb.t_filtered);
+					//we will only publish if everything is okay with the transform too. 
+					wrench_publisher_f.publish(pb.w_filtered);
+				}
+				else
+				{
+					ROS_ERROR("filtered has no child_frame_id");
+				}
+			}
 			previous_time = ik_header_stamp;
 		};
 
@@ -188,11 +259,13 @@ class SyncRepublisher
 int main(int argvc, char **argv)
 {
 	ros::init(argvc, argv, "rep");
-	SyncRepublisher sr;
+	//TODO:reads the message trigger type and instantiate the appropriate type of class to sync to. 
+		SyncRepublisher<opensimrt_msgs::CommonTimed> sr;
 	while(ros::ok())
 	{
 		sr.run();
 		ros::spinOnce();
+		sr.r->sleep(); //make sure that every branch has the sleep.
 	}
 
 	return 0;
