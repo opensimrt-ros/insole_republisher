@@ -1,13 +1,31 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <launch>
-	<arg name="freq" default="100" />
+	<arg name="freq" 		default="100" />
+	<arg name="wrench_delay" 		default="0.0"/>
+	<arg name="right_sync_time_secs"	default=""/>
+	<arg name="right_sync_time_nsecs"	default=""/>
+	<arg name="right_insole_t0"		default=""/>
+	<arg name="left_sync_time_secs"		default=""/>
+	<arg name="left_sync_time_nsecs"	default=""/>
+	<arg name="left_insole_t0"		default=""/>
 	<include file="$(find republisher)/launch/republisher_grf.launch">
-		<arg name="freq" value="$(arg freq)"/>
-		<arg name="some_grf" value="right"/>
+		<arg name="freq" 	value="$(arg freq)"/>
+		<arg name="some_grf" 	value="right"/>
+		<arg name="wrench_delay"	value="$(arg wrench_delay)"/>
+		<!-- Is this a realistic value to have? In any case, this should be set by a time sync service -->
+		<arg name="sync_time_secs" 	value="$(arg right_sync_time_secs)" />
+		<arg name="sync_time_nsecs" 	value="$(arg right_sync_time_nsecs)" />
+		<arg name="insole_t0" 		value="$(arg right_insole_t0)" />
+		<arg name="maximum_delay_before_refresh" 	value="10" />
 	</include>
 	<include file="$(find republisher)/launch/republisher_grf.launch">
-		<arg name="freq" value="$(arg freq)"/>
-		<arg name="some_grf" value="left"/>
+		<arg name="freq" 	value="$(arg freq)"/>
+		<arg name="some_grf" 	value="left"/>
+		<arg name="wrench_delay"	value="$(arg wrench_delay)"/>
+		<arg name="sync_time_secs" 	value="$(arg left_sync_time_secs)" />
+		<arg name="sync_time_nsecs" 	value="$(arg left_sync_time_nsecs)" />
+		<arg name="insole_t0" 		value="$(arg left_insole_t0)" />
+		<arg name="maximum_delay_before_refresh" 	value="10" />
 	</include>
 
 </launch>
