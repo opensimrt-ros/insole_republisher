@@ -8,6 +8,7 @@
 
 #define FILTER_H
 #include "SignalProcessing.h"
+#include "ros/duration.h"
 #include "ros/node_handle.h"
 #include "std_msgs/Header.h"
 
@@ -48,12 +49,17 @@ class RosOpenSimRTFilter
 		}
 };
 
+template<class T>
 class AppropriateTime
 {
 	public:
 		std::optional<ros::Time> initial_time;
+		std::optional<ros::Duration> delay;
+
 		void set_initial_time(std_msgs::Header h, ros::Duration d)
 		{
+			delay = d;
+			ROS_WARN_STREAM("Delay set to "<< delay.value());
 			initial_time = h.stamp - d;				
 
 		}
@@ -61,6 +67,14 @@ class AppropriateTime
 		{
 			ros::Duration d = h.stamp - initial_time.value();
 			return d.toSec();
+		}
+		T shift(T msg)
+		{
+			if (delay)
+				msg.header.stamp -= delay.value();
+			else
+				ROS_ERROR("delay not set!");
+			return msg;
 		}
 };
 
