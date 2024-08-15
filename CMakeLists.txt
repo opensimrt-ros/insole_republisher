@@ -7,6 +7,7 @@ find_package(OpenSim 4.0 REQUIRED PATHS "${OPENSIM_HOME}"
 	)
 
 find_package(catkin REQUIRED COMPONENTS
+	dynamic_reconfigure
 	tf
 	roscpp
 	insole_msgs
@@ -16,6 +17,10 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(opensimrt REQUIRED COMPONENTS
 	Common
 	Realtime)
+
+generate_dynamic_reconfigure_options(
+	cfg/delay.cfg
+)
 
 catkin_package(
 	INCLUDE_DIRS include
@@ -35,6 +40,7 @@ foreach(dir ${catkin_INCLUDE_DIRS})
 		"catkin_dir=${dir}"
 		)
 endforeach()
+
 
 add_executable(${PROJECT_NAME}_node src/republisher_node.cpp)
 

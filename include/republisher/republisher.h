@@ -3,6 +3,7 @@
 #include "geometry_msgs/Transform.h"
 #include "geometry_msgs/TransformStamped.h"
 #include "geometry_msgs/WrenchStamped.h"
+#include "republisher/delayConfig.h"
 #include "republisher/filter.h"
 #include "ros/node_handle.h"
 #include "ros/publisher.h"
@@ -103,6 +104,12 @@ class Republisher
 
 			tf.sendTransform(st);
 			return st;
+		}
+		void reconfigure_delay_callback(insole_republisher::delayConfig &config, uint32_t level){
+			ROS_INFO("Setting delay to new value:%f[s]", config.delay);
+
+			delay.fromSec(config.delay);
+			at.set_delay(delay);
 		}
 
 		void callback(T msg_insole)

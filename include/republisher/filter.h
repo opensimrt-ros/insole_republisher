@@ -54,16 +54,13 @@ class AppropriateTime
 {
 	public:
 		std::optional<ros::Time> initial_time;
-		std::optional<ros::Duration> delay;
 
-		void set_initial_time(std_msgs::Header h, ros::Duration d)
+		void set_initial_time(const std_msgs::Header h, const ros::Duration d)
 		{
-			delay = d;
-			ROS_WARN_STREAM("Delay set to "<< delay.value());
-			initial_time = h.stamp - d;				
-
+			initial_h = h;
+			set_delay(d);
 		}
-		double now(std_msgs::Header h)
+		double now(const std_msgs::Header h)
 		{
 			ros::Duration d = h.stamp - initial_time.value();
 			return d.toSec();
@@ -76,6 +73,15 @@ class AppropriateTime
 				ROS_ERROR("delay not set!");
 			return msg;
 		}
+		void set_delay(const ros::Duration d)
+		{
+			delay = d;
+			ROS_WARN_STREAM("Delay set to "<< delay.value());
+			initial_time = initial_h.stamp - d;
+		}
+	private:
+		std_msgs::Header initial_h;
+		std::optional<ros::Duration> delay;
 };
 
 
