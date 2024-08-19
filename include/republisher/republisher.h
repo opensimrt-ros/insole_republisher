@@ -116,15 +116,17 @@ class Republisher
 		{
 			ROS_DEBUG_STREAM("received value!");
 
+			bool first_message_received = false;
 			if (!at.initial_time)
 			{
 				at.set_initial_time(msg_insole.header,delay);
 				*old_time = at.now(msg_insole.header);
+				first_message_received = true;
 			}
 
 			double time = at.now(msg_insole.header);
 			msg_insole = at.shift(msg_insole);
-			if (time<=*old_time)
+			if (time<=*old_time && ! first_message_received)
 			{
 				ROS_ERROR_STREAM("time is smaller than previous time. this is a problem: time:" << time << "*old_time" << old_time);
 				return;
