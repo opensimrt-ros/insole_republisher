@@ -11,8 +11,8 @@ int main(int argvc, char **argv)
 	ros::init(argvc, argv, "rep");
 	ros::NodeHandle nh("~");
 	Republisher<insole_msgs::InsoleSensorStamped> rep;
-	dynamic_reconfigure::Server<insole_republisher::delayConfig> delay_server_(nh);
-	dynamic_reconfigure::Server<insole_republisher::delayConfig>::CallbackType f;
+	dynamic_reconfigure::Server<republisher::delayConfig> delay_server_(nh);
+	dynamic_reconfigure::Server<republisher::delayConfig>::CallbackType f;
 	f = boost::bind(&Republisher<insole_msgs::InsoleSensorStamped>::reconfigure_delay_callback, &rep, _1, _2);
 	delay_server_.setCallback(f);
 

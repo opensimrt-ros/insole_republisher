@@ -19,7 +19,7 @@ class Republisher
 {
 	public:
 		ros::Rate* r;
-		double old_time;
+		double* old_time;
 		ros::Duration delay;
 		tf::TransformBroadcaster tf;
 		bool debug_publish_zero_cop, debug_publish_fixed_force;
@@ -105,10 +105,10 @@ class Republisher
 			tf.sendTransform(st);
 			return st;
 		}
-		void reconfigure_delay_callback(insole_republisher::delayConfig &config, uint32_t level){
-			ROS_INFO("Setting delay to new value:%f[s]", config.delay);
+		void reconfigure_delay_callback(republisher::delayConfig &config, uint32_t level){
+			ROS_INFO("Setting delay to new value:%f[s]", config.side_delay);
 
-			delay.fromSec(config.delay);
+			delay.fromSec(config.side_delay);
 			at.set_delay(delay);
 		}
 
@@ -119,14 +119,14 @@ class Republisher
 			if (!at.initial_time)
 			{
 				at.set_initial_time(msg_insole.header,delay);
-				old_time = at.now(msg_insole.header);
+				*old_time = at.now(msg_insole.header);
 			}
 
 			double time = at.now(msg_insole.header);
 			msg_insole = at.shift(msg_insole);
-			if (time<=old_time)
+			if (time<=*old_time)
 			{
-				ROS_ERROR("time is smaller than previous time. this is a problem");
+				ROS_ERROR_STREAM("time is smaller than previous time. this is a problem: time:" << time << "*old_time" << old_time);
 				return;
 			}
 			ROS_DEBUG_STREAM(time);
@@ -165,7 +165,7 @@ class Republisher
 					wrench_publisher_f.publish(w);
 				}
 			}
-			old_time = time;
+			*old_time = time;
 		}
 
 

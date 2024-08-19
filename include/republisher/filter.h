@@ -57,30 +57,55 @@ class AppropriateTime
 
 		void set_initial_time(const std_msgs::Header h, const ros::Duration d)
 		{
+			ROS_WARN_STREAM("using this header:"<<h << " and this duration"<< d);
 			initial_h = h;
+			if (initial_h.value().stamp.toSec()<5)
+				ROS_FATAL_STREAM("You cannot have such small stamped values or you won't be able to go back in time (Unix time is always positive!)");
+
 			set_delay(d);
 		}
 		double now(const std_msgs::Header h)
 		{
-			ros::Duration d = h.stamp - initial_time.value();
-			return d.toSec();
+			try {
+				ros::Duration d = h.stamp - initial_time.value();
+				return d.toSec();
+			}
+			catch(std::runtime_error& ex) {
+				ROS_ERROR("Exception: [%s]", ex.what());
+			}
 		}
 		T shift(T msg)
 		{
-			if (delay)
-				msg.header.stamp -= delay.value();
+			if (delay.has_value()){
+				try {
+					msg.header.stamp -= delay.value();
+				}
+				catch(std::runtime_error& ex) {
+					ROS_ERROR("Exception: [%s]", ex.what());
+				}}
 			else
 				ROS_ERROR("delay not set!");
 			return msg;
 		}
 		void set_delay(const ros::Duration d)
 		{
-			delay = d;
-			ROS_WARN_STREAM("Delay set to "<< delay.value());
-			initial_time = initial_h.stamp - d;
+			if(initial_h.has_value())
+			{
+				delay = d;
+
+				ROS_WARN_STREAM("Delay set to "<< delay.value());
+				try {
+					initial_time = initial_h.value().stamp - d;
+				}
+				catch(std::runtime_error& ex) {
+					ROS_ERROR("Exception: [%s]", ex.what());
+				}
+			}
+			else
+				ROS_WARN_STREAM("I cannot set own time yet. First message not received.");
 		}
 	private:
-		std_msgs::Header initial_h;
+		std::optional<std_msgs::Header> initial_h;
 		std::optional<ros::Duration> delay;
 };
 
