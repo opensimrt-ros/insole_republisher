@@ -19,7 +19,7 @@ class Republisher
 {
 	public:
 		ros::Rate* r;
-		double* old_time;
+		double old_time;
 		ros::Duration delay;
 		tf::TransformBroadcaster tf;
 		bool debug_publish_zero_cop, debug_publish_fixed_force;
@@ -115,20 +115,21 @@ class Republisher
 		void callback(T msg_insole)
 		{
 			ROS_DEBUG_STREAM("received value!");
+			
+			double time = msg_insole.header.stamp.toSec(); // this time is just for the filter and it needs to be always increasing.
 
 			bool first_message_received = false;
 			if (!at.initial_time)
 			{
 				at.set_initial_time(msg_insole.header,delay);
-				*old_time = at.now(msg_insole.header);
+				old_time = time;
 				first_message_received = true;
 			}
 
-			double time = at.now(msg_insole.header);
 			msg_insole = at.shift(msg_insole);
-			if (time<=*old_time && ! first_message_received)
+			if (time<=old_time && ! first_message_received)
 			{
-				ROS_ERROR_STREAM("time is smaller than previous time. this is a problem: time:" << time << "*old_time" << old_time);
+				ROS_ERROR_STREAM("time is smaller than previous time. this is a problem: time:" << time << "old_time" << old_time);
 				return;
 			}
 			ROS_DEBUG_STREAM(time);
@@ -167,7 +168,7 @@ class Republisher
 					wrench_publisher_f.publish(w);
 				}
 			}
-			*old_time = time;
+			old_time = time;
 		}
 
 

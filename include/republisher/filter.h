@@ -20,7 +20,7 @@ class RosOpenSimRTFilter
 		double cutoffFreq;
 		int splineOrder, memory, delay;
 		OpenSimRT::LowPassSmoothFilter * ofilter;
-		double old_time = 0;
+		double old_time = -10000;
 		RosOpenSimRTFilter(ros::NodeHandle nh, int numSignals)
 		{
 			nh.param<bool>("filter_output",publish_filtered, true);
@@ -72,13 +72,15 @@ class AppropriateTime
 			}
 			catch(std::runtime_error& ex) {
 				ROS_ERROR("Exception: [%s]", ex.what());
+				return h.stamp.toSec();
 			}
 		}
+
 		T shift(T msg)
 		{
 			if (delay.has_value()){
 				try {
-					msg.header.stamp -= delay.value();
+					msg.header.stamp += delay.value();
 				}
 				catch(std::runtime_error& ex) {
 					ROS_ERROR("Exception: [%s]", ex.what());
@@ -95,7 +97,7 @@ class AppropriateTime
 
 				ROS_WARN_STREAM("Delay set to "<< delay.value());
 				try {
-					initial_time = initial_h.value().stamp - d;
+					initial_time = initial_h.value().stamp + d;
 				}
 				catch(std::runtime_error& ex) {
 					ROS_ERROR("Exception: [%s]", ex.what());
