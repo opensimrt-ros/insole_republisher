@@ -25,7 +25,6 @@ class Republisher
 		bool debug_publish_zero_cop, debug_publish_fixed_force;
 		ros::Publisher wrench_publisher_f, wrench_publisher, imu_publisher;
 		
-		std::string foot_center_name;
 
 		RosOpenSimRTFilter* wfilter;
 		AppropriateTime<T> at;
@@ -33,7 +32,6 @@ class Republisher
 		{
 			ROS_INFO_STREAM("this started");
 			wfilter = new RosOpenSimRTFilter(nh,6);
-			nh.getParam("foot_center_name", foot_center_name);
 			
 			nh.param<int>("input_queue_length", input_queue_length, 10);
 			sub = nh.subscribe("input", 10, &Republisher::callback, this);
@@ -61,7 +59,6 @@ class Republisher
 			auto i_msg = sensor_msgs::Imu();
 			i_msg = msg_insole.imu;
 			i_msg.header= msg_insole.header;
-			i_msg.header.frame_id = foot_center_name;
 			imu_publisher.publish(i_msg);	
 		}
 
