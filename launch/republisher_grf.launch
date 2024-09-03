@@ -20,6 +20,7 @@
 			<remap from="insole_republisher/output" 		to="/$(arg some_grf)/insole_fixed_freq"/>
 			<remap from="insole_republisher/wrench_oversampled"	to="/grf_$(arg some_grf)/wrench_fixed_freq"/>
 			<remap from="insole_republisher/wrench_filtered" 	to="/grf_$(arg some_grf)/wrench"/>
+			<remap from="imu_raw" 					to="imu_delayed"/>
 			<!-- Filter values for filtered output -->
 			<param name="filter_output" 		value="true" />
 			<param name="memory" 			value="35" />
